@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body style="background-image: url('background.jpg');"> <!-- Set background color to black -->
+
+
+
+
+
+    <script>
+        // Function to open and cloe side nav
+        function toggleNav() {
+            let sideNav = document.getElementById("mySideNav");
+            let openNavBtn = document.getElementById("openNavBtn");
+
+            if (sideNav.style.width === "200px") {
+                sideNav.style.width = "0";
+                openNavBtn.classList.remove('open');
+            } else {
+                sideNav.style.width = "200px";
+                openNavBtn.classList.add('open');
+            }
+        }
+    </script>
+
+
+
+    <!-- Toggle button to open/close side nav -->
+    <button id="openNavBtn" class="navbar-toggler" onclick="toggleNav()">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+    </button>
+
+
+
+    <!-- Inside NavBar -->
+    <div class="side-nav" id="mySideNav">
+        <h2 id="greet" class="greet-message"></h2> <!-- Move GreetHead inside side-nav -->
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" aria-current="page" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Profile</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    About
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">About Us</a></li>
+                    <li><a class="dropdown-item" href="#">Career</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#">Contact Us</a></li>
+                </ul>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link disabled">Setting</a>
+            </li>
+        </ul>
+        <form class="d-flex" role="search">
+            <button class="btn btn-outline-success" type="button" id="signoutbutton">Sign Out</button>
+        </form>
+    </div>
+    
+
+
+
+
+
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Content goes here -->
+        <div class="container mt-5">
+            <h2>Inventory <span id="greet" class="greet-message"></span></h2>
+    
+            <!-- Input field and submit button -->
+            <div class="row mb-3">
+                <div class="col">
+                    <input type="text" class="form-control create-new-inventory-inp" id="inputField" placeholder="Enter Inventory Name">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary create-new-inventory-btn" type="button" id="submitButton">Create</button>
+                </div>
+            </div>
+    
+            <!-- Inventory list -->
+            <div class="containerinvlist">
+                <div class="col">
+                    <div id="inventoriesContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+
+
+    <!-- Firebase script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvTmuQ1H82S0XVru162qDG-JvTyfBhrRU",
+            authDomain: "inventory-syatem.firebaseapp.com",
+            databaseURL: "https://inventory-syatem-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "inventory-syatem",
+            storageBucket: "inventory-syatem.appspot.com",
+            messagingSenderId: "911339452714",
+            appId: "1:911339452714:web:6fdd5977e4e8cc0b828653",
+            measurementId: "G-RT6WCYVJ1R"
+        };
+    
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase();
+        const auth = getAuth(app);
+    
+        function getNextInventoryRef(userUid) {
+            return new Promise((resolve, reject) => {
+                const userRef = ref(db, 'UsersAuthList/' + userUid);
+                get(userRef)
+                    .then((snapshot) => {
+                        const userData = snapshot.val();
+                        let nextIndex = 1;
+                        if (userData) {
+                            const inventoryKeys = Object.keys(userData).filter(key => key.startsWith('minventory-'));
+                            if (inventoryKeys.length > 0) {
+                                const lastKey = inventoryKeys[inventoryKeys.length - 1];
+                                // Extract the index from the last key
+                                const lastIndex = parseInt(lastKey.split('-')[1]);
+                                nextIndex = lastIndex + 1;
+                            }
+                        }
+                        const nextInventory = 'minventory-' + nextIndex;
+                        resolve(nextInventory);
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching user data:', error);
+                        reject(error);
+                    });
+            });
+        }
+
+
+
+        // for create inventory list in database
+        function handleSubmit() {
+            let inputField = document.getElementById('inputField');
+            let inputValue = inputField.value.trim();
+    
+            if (inputValue !== '') {
+                // Get the user's credentials
+                let user = JSON.parse(sessionStorage.getItem("user-creds"));
+    
+                // Get the reference for the next inventory
+                getNextInventoryRef(user.uid)
+                    .then((nextInventoryRef) => {
+                        // Create the database reference for the next inventory
+                        let dbRef = ref(db, 'UsersAuthList/' + user.uid + '/' + nextInventoryRef);
+                        // Set the value of the next inventory
+                        set(dbRef, { name: inputValue, items: {} }) // Storing inventory name and an empty object for items
+                            .then(() => {
+                                console.log('Text data saved to database');
+                                // After saving, retrieve and display all inventories
+                                retrieveAndDisplayData();
+                            })
+                            .catch((error) => console.error('Error saving text data:', error));
+                    })
+                    .catch((error) => {
+                        console.error('Error getting next inventory reference:', error);
+                    });
+    
+                inputField.value = ''; // Clear input field after submission
+            } else {
+                alert('Please enter something in the input field.');
+            }
+        }
+    
+
+
+
+        // (Display Inventory List) Function to retrieve and display all inventories with newest items first
+        function retrieveAndDisplayData() {
+            let user = JSON.parse(sessionStorage.getItem("user-creds"));
+            let dbRef = ref(db, 'UsersAuthList/' + user.uid);
+
+            get(dbRef)
+                .then((snapshot) => {
+                    let userData = snapshot.val();
+                    let inventoriesContainer = document.getElementById('inventoriesContainer');
+                    inventoriesContainer.innerHTML = ''; // Clear previous inventory list
+
+                    if (userData) {
+                        let inventoryKeys = Object.keys(userData).filter(key => key.startsWith('minventory'));
+                        
+                        // Display inventories in reverse order (newest first)
+                        for (let i = inventoryKeys.length - 1; i >= 0; i--) {
+                            let key = inventoryKeys[i];
+                            let inventoryData = userData[key];
+                            let inventoryName = inventoryData.name;
+                            let inventoryItems = inventoryData.items || {}; // Use empty object if items is undefined or null
+                            let inventoryItem = document.createElement('div');
+                            inventoryItem.classList.add('inventory-item');
+                            // Create a span element for the inventory name and add the class
+                            let nameElement = document.createElement('span');
+                            nameElement.classList.add('inventoryText');
+                            nameElement.textContent = inventoryName;
+
+                            // Include inventory name, delete button, and open button
+                            inventoryItem.appendChild(nameElement);
+                            inventoryItem.innerHTML += `
+                                <button class="open-btn" onclick="openInventory('${key}')">Open</button>
+                                <button class="delete-btn" onclick="deleteInventory('${key}')">Delete</button>
+                            `;
+                            inventoriesContainer.appendChild(inventoryItem);
+                        }
+
+                    } else {
+                        console.log('No inventory data found.');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error retrieving inventories:', error);
+                });
+        }
+
+
+        window.openInventory = function(inventoryKey) {
+            sessionStorage.setItem('currentInventoryKey', inventoryKey);
+            window.location.href = 'inventory.html';
+        }
+
+
+
+
+        // (Delete button)Function to delete an inventory item
+        window.deleteInventory = function(inventoryKey) {
+            let user = JSON.parse(sessionStorage.getItem("user-creds"));
+            let dbRef = ref(db, 'UsersAuthList/' + user.uid + '/' + inventoryKey);
+    
+            set(dbRef, null)
+                .then(() => {
+                    console.log('Inventory deleted');
+                    // After deleting, retrieve and display all inventories
+                    retrieveAndDisplayData();
+                })
+                .catch((error) => {
+                    console.error('Error deleting inventory:', error);
+                });
+        }
+    
+        // Add event listener to the submit button
+        document.getElementById('submitButton').addEventListener('click', handleSubmit);
+    
+        // Call the function to retrieve and display data when the page loads
+        window.addEventListener('load', retrieveAndDisplayData);
+
+
+
+
+
+        // other funtion script
+        let UserCreds = JSON.parse(sessionStorage.getItem("user-creds"));
+        let UserInfo = JSON.parse(sessionStorage.getItem("user-info"));
+
+        let MsgHead = document.getElementById('msg');
+        let GreetHead = document.getElementById('greet');
+        let SignoutBtn = document.getElementById('signoutbutton');
+        
+
+
+
+
+        // signout funtion
+        let Signout = ()=>{
+            sessionStorage.removeItem("user-cred");
+            sessionStorage.removeItem("user-info");
+            window.location.href = 'login.html'
+        }
+
+        let CheckCred = ()=>{
+            if (!sessionStorage.getItem("user-creds"))
+                window.location.href = 'login.html'
+            else{
+                //MsgHead.innerText = `user with email "${UserCreds.email}" logged in`;
+                GreetHead.innerText = `${UserInfo.firstname + " " + UserInfo.lastname}`;
+            }
+        }
+
+        window.addEventListener('load', CheckCred);
+        SignoutBtn.addEventListener('click', Signout);
+
+
+        
+    </script>
+</body>
+</html>

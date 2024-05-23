@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="background-image: url('background.jpg');"> <!-- Set background color to black -->
+
+    <script>
+        // Function to open and close side nav
+        function toggleNav() {
+            let sideNav = document.getElementById("mySideNav");
+            let openNavBtn = document.getElementById("openNavBtn");
+            let inventoryText = document.getElementById("inventoryDetail");
+            let containerivnlist = document.querySelector(".containerivnlist");
+
+            if (sideNav.style.width === "200px") {
+                sideNav.style.width = "0";
+                openNavBtn.classList.remove('open');
+                inventoryText.style.marginLeft = inventoryText.dataset.initialMarginLeft; // Reset margin to initial value
+                containerivnlist.style.marginLeft = containerivnlist.dataset.initialMarginLeft; // Reset margin to initial value
+            } else {
+                sideNav.style.width = "200px";
+                openNavBtn.classList.add('open');
+                // Store the current margin-left value before adjusting it
+                inventoryText.dataset.initialMarginLeft = getComputedStyle(inventoryText).marginLeft;
+                containerivnlist.dataset.initialMarginLeft = getComputedStyle(containerivnlist).marginLeft;
+                inventoryText.style.marginLeft = "200px"; // Adjusting margin when opening nav
+                containerivnlist.style.marginLeft = "200px"; // Adjusting margin when opening nav
+            }
+        }
+    </script>
+
+    <!-- Toggle button to open/close side nav -->
+    <button id="openNavBtn" class="navbar-toggler" onclick="toggleNav()">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+    </button>
+
+    <div id="inventoryDetail"></div>
+
+    <!-- Inside NavBar -->
+    <div class="side-nav" id="mySideNav">
+        <h2 id="greet" class="greet-message"></h2> <!-- Move GreetHead inside side-nav -->
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" aria-current="page" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Profile</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    About
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">About Us</a></li>
+                    <li><a class="dropdown-item" href="#">Career</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#">Contact Us</a></li>
+                </ul>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link">Setting</a>
+            </li>
+        </ul>
+        <form class="d-flex" role="search">
+            <button class="btn btn-outline-success" type="button" id="signoutbutton">Sign Out</button>
+        </form>
+    </div>
+
+    <script>
+        // Store the initial margin-left value when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            let inventoryText = document.getElementById("inventoryDetail");
+            let containerivnlist = document.querySelector(".containerivnlist");
+            inventoryText.dataset.initialMarginLeft = getComputedStyle(inventoryText).marginLeft;
+            containerivnlist.dataset.initialMarginLeft = getComputedStyle(containerivnlist).marginLeft;
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, update, push, remove, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvTmuQ1H82S0XVru162qDG-JvTyfBhrRU",
+            authDomain: "inventory-syatem.firebaseapp.com",
+            databaseURL: "https://inventory-syatem-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "inventory-syatem",
+            storageBucket: "inventory-syatem.appspot.com",
+            messagingSenderId: "911339452714",
+            appId: "1:911339452714:web:6fdd5977e4e8cc0b828653",
+            measurementId: "G-RT6WCYVJ1R"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const inventoryDetail = document.getElementById('inventoryDetail');
+            const addItemInput = document.getElementById('add-item-inp');
+            const addItemButton = document.getElementById('add-item-btn');
+            const quantityInput = document.getElementById('quantity-inp');
+            const itemList = document.getElementById('item-list');
+            let itemNumber = 1; // Counter for item number
+
+            addItemButton.addEventListener('click', () => {
+                const inventoryKey = sessionStorage.getItem('currentInventoryKey');
+                const newItemName = addItemInput.value.trim();
+                const newQuantity = parseInt(quantityInput.value);
+
+                if (inventoryKey && newItemName && !isNaN(newQuantity) && newQuantity > 0) {
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            const itemsRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}/items`);
+                            const newItemRef = push(itemsRef); // New item reference under 'items'
+                            set(newItemRef, {
+                                item: newItemName,
+                                quantity: newQuantity
+                            })
+                            .then(() => {
+                                console.log('New item added successfully.');
+                                // After adding new item, display updated list
+                                displayItems(inventoryKey, user);
+                            })
+                            .catch((error) => {
+                                console.error('Error adding new item:', error);
+                            });
+                        } else {
+                            console.log('User not authenticated.');
+                        }
+                    });
+                } else {
+                    console.log('Please enter both an inventory key, a new item name, and a valid quantity.');
+                }
+            });
+
+            // Function to create editable input fields for Item, Quantity, and Note columns
+            function createEditableInput(value, type, columnType, itemId, inventoryKey, user) {
+                let input;
+
+                // Create textarea only for 'item' and 'note' columns
+                if (columnType === 'item' || columnType === 'note') {
+                    input = document.createElement('textarea');
+                    input.value = value; // Set initial value
+                    input.rows = 1; // Set default rows to 1
+
+                    // Add event listener for focus to enable auto-expand
+                    input.addEventListener('focus', () => {
+                        autoExpandTextArea(input);
+                    });
+
+                    // Add event listener for blur to reset height after focus
+                    input.addEventListener('blur', () => {
+                        input.style.height = ''; // Reset height when textarea loses focus
+                    });
+                } else {
+                    // For other column types, create regular input field
+                    input = document.createElement('input');
+                    input.setAttribute('type', type);
+                    input.value = value; // Set initial value
+                }
+
+                input.addEventListener('change', (event) => {
+                    const newValue = event.target.value;
+                    const itemRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}/items/${itemId}`);
+                    const updateData = {};
+
+                    // Determine which property to update based on column type
+                    if (columnType === 'item') {
+                        updateData['item'] = newValue;
+                    } else if (columnType === 'quantity') {
+                        updateData['quantity'] = parseInt(newValue);
+                    } else if (columnType === 'note') {
+                        updateData['note'] = newValue;
+                    }
+
+                    update(itemRef, updateData)
+                        .then(() => {
+                            console.log('Item updated successfully.');
+                        })
+                        .catch((error) => {
+                            console.error('Error updating item:', error);
+                        });
+                });
+
+                return input;
+            }
+
+
+            // Function to display items with editable Quantity and Note columns
+            function displayItems(inventoryKey, user) {
+                const itemsRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}/items`);
+                get(itemsRef)
+                    .then((snapshot) => {
+                        itemList.innerHTML = ''; // Clear previous items
+                        let itemNumber = 1; // Reset item number counter
+
+                        if (snapshot.exists()) {
+                            const items = snapshot.val();
+                            Object.entries(items).forEach(([key, item]) => { // Using Object.entries to get both key and value
+                                const itemRow = document.createElement('tr');
+
+                                // Number column
+                                const itemNumberCell = document.createElement('td');
+                                itemNumberCell.textContent = itemNumber++;
+                                itemRow.appendChild(itemNumberCell);
+
+                                // Item column
+                                const itemItemCell = document.createElement('td');
+                                const itemItemInput = createEditableInput(item.item, 'text', 'item', key, inventoryKey, user);
+                                itemItemCell.appendChild(itemItemInput);
+                                itemRow.appendChild(itemItemCell);
+
+                                // Quantity column (editable)
+                                const itemQuantityCell = document.createElement('td');
+                                const quantityInput = createEditableInput(item.quantity, 'number', 'quantity', key, inventoryKey, user);
+                                itemQuantityCell.appendChild(quantityInput);
+                                itemRow.appendChild(itemQuantityCell);
+
+                                // Note column (editable)
+                                const itemNoteCell = document.createElement('td');
+                                const noteInput = createEditableInput(item.note || '', 'text', 'note', key, inventoryKey, user); // Note can be empty initially
+                                itemNoteCell.appendChild(noteInput);
+                                itemRow.appendChild(itemNoteCell);
+
+                                // Delete column
+                                const itemDeleteCell = document.createElement('td');
+                                const deleteButton = document.createElement('button');
+                                deleteButton.textContent = "Delete";
+                                deleteButton.classList.add("custom-delete-button"); // Adding custom class for styling
+
+                                deleteButton.addEventListener('click', () => {
+                                    // Show confirmation dialog before deleting
+                                    if (confirm("Are you sure you want to delete this item?")) {
+                                        // Delete item from database
+                                        const itemRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}/items/${key}`);
+                                        remove(itemRef)
+                                            .then(() => {
+                                                console.log('Item deleted successfully.');
+                                                // After deleting item, display updated list
+                                                displayItems(inventoryKey, user);
+                                            })
+                                            .catch((error) => {
+                                                console.error('Error deleting item:', error);
+                                            });
+                                    }
+                                });
+
+                                itemDeleteCell.appendChild(deleteButton);
+                                itemRow.appendChild(itemDeleteCell);
+
+                                itemList.appendChild(itemRow);
+                            });
+                        } else {
+                            console.log('No items found in the inventory.');
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching items:', error);
+                    });
+            }
+
+            // Function to update Item quantity and note in the database
+            function updateItem(itemId, newValue, valueType) {
+                const inventoryKey = sessionStorage.getItem('currentInventoryKey');
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        const itemRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}/items/${itemId}`);
+                        const updateData = {};
+                        if (valueType === 'number') {
+                            updateData['quantity'] = parseInt(newValue);
+                        } else if (valueType === 'text') {
+                            updateData['note'] = newValue;
+                        }
+                        update(itemRef, updateData)
+                            .then(() => {
+                                console.log('Item updated successfully.');
+                                // Refresh the item list after update
+                                displayItems(inventoryKey, user);
+                            })
+                            .catch((error) => {
+                                console.error('Error updating item:', error);
+                            });
+                    } else {
+                        console.log('User not authenticated.');
+                    }
+                });
+            }
+
+            
+
+            // Remaining code to display inventory detail can remain as it is
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    const inventoryKey = sessionStorage.getItem('currentInventoryKey');
+                    if (inventoryKey) {
+                        const inventoryRef = ref(db, `UsersAuthList/${user.uid}/${inventoryKey}`);
+
+                        get(inventoryRef)
+                            .then((snapshot) => {
+                                if (snapshot.exists()) {
+                                    const inventoryValue = snapshot.val();
+                                    const inventoryName = inventoryValue.name;
+                                    inventoryDetail.textContent = `${inventoryName}`;
+
+                                    // Display items
+                                    displayItems(inventoryKey, user);
+                                } else {
+                                    inventoryDetail.textContent = 'No inventory item found.';
+                                }
+                            })
+                            .catch((error) => {
+                                console.error('Error fetching inventory details:', error);
+                                inventoryDetail.textContent = 'Error fetching inventory details.';
+                            });
+                    } else {
+                        inventoryDetail.textContent = 'No inventory item specified.';
+                    }
+                } else {
+                    inventoryDetail.textContent = 'User not authenticated.';
+                }
+            });
+        });
+
+
+
+        // Function to auto-expand textarea
+        function autoExpandTextArea(element) {
+            // Reset the height to auto to recalculate the actual height
+            element.style.height = 'auto';
+            
+            // Set the height to the scrollHeight
+            element.style.height = (element.scrollHeight) + 'px';
+        }
+
+
+
+        // Other function script
+        let UserCreds = JSON.parse(sessionStorage.getItem("user-creds"));
+        let UserInfo = JSON.parse(sessionStorage.getItem("user-info"));
+
+        let MsgHead = document.getElementById('msg');
+        let GreetHead = document.getElementById('greet');
+        let SignoutBtn = document.getElementById('signoutbutton');
+
+        // Signout function
+        let Signout = () => {
+            sessionStorage.removeItem("user-creds");
+            sessionStorage.removeItem("user-info");
+            window.location.href = 'login.html';
+        }
+
+        let CheckCred = () => {
+            if (!sessionStorage.getItem("user-creds"))
+                window.location.href = 'login.html';
+            else {
+                // MsgHead.innerText = `User with email "${UserCreds.email}" logged in`;
+                GreetHead.innerText = `${UserInfo.firstname + " " + UserInfo.lastname}`;
+            }
+        }
+
+        window.addEventListener('load', CheckCred);
+        SignoutBtn.addEventListener('click', Signout);
+
+        
+
+    </script>
+
+    <div class="container">
+        <div>
+            <div class="containerivnlist">
+                <div class="input-group mb-3">
+                    <input type="text" id="add-item-inp" class="form-control" placeholder="Enter New Item Name">
+                    <input type="number" id="quantity-inp" class="form-control" placeholder="Quantity">
+                    <button id="add-item-btn" class="btn btn-primary" type="button">Submit</button>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="col-number"></th>
+                            <th class="col-item">Item</th>
+                            <th class="col-qty">Qty</th>
+                            <th class="col-note">Note</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="item-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
